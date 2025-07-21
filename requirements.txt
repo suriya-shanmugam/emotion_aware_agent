@@ -1,3 +1,4 @@
 smolagents[openai]
 smolagents[litellm]
 duckduckgo-search
+streamlit
