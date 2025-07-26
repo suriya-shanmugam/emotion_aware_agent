@@ -2,3 +2,11 @@ smolagents[openai]
 smolagents[litellm]
 duckduckgo-search
 streamlit
+langchain-community
+langchain-huggingface
+langchain
+transformers
+torch
+faiss-cpu
+pypdf
+sentence-transformers

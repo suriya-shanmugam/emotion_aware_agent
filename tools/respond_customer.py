@@ -2,32 +2,39 @@ import streamlit as st
 import os
 from smolagents import tool
 from huggingface_hub import InferenceClient
+from vector_store import vector_store_manager
 
 @tool
-def respond_customer(query: str, emotion: str) -> str:
+def respond_customer(query: str) -> str:
     """
-    Generates a helpful customer response based on the query and detected emotion.
+    Generates a helpful customer response based on the query and relevant documents from vector store.
 
     Args:
         query (str): The customer's question or complaint.
-        emotion (str): The detected emotion of the customer.
+        
 
     Returns:
-        str: The assistant's response tailored to the emotional tone.
+        str: The assistant's response by relevant documents.
     """
-    response_prompt = f"""
-You are a helpful customer support assistant. Generate an appropriate response to the customer's query.
+    # Fetch relevant documents from vector store
+    related_docs = vector_store_manager.get_relevant_docs(query, k=3)
+    
+    # Prepare context from documents
+    if related_docs:
+        retrieved_docs_text = [doc.page_content for doc in related_docs]  # We only need the text of the documents
+        context = "\nExtracted documents:\n"
+        context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(retrieved_docs_text)])
+    else:
+        context = "No relevant documents found in uploaded PDFs."
+    
+    query_context = f"""
+        
+        
+        Customer Query: "{query}"
+        context : "{context}"
 
-Customer Query: "{query}"
-Detected Emotion: {emotion}
-
-Guidelines:
-- If emotion is "negative": Show empathy, acknowledge their frustration, and provide helpful assistance
-- If emotion is "positive": Be enthusiastic and supportive while addressing their query
-- If emotion is "neutral": Provide clear, professional assistance
-
-Generate a natural, helpful response that addresses their query while being appropriate for their emotional state.
-"""
+        """
+    
     try:
         client = InferenceClient(
             provider="groq",
@@ -37,9 +44,18 @@ Generate a natural, helpful response that addresses their query while being appr
         completion = client.chat.completions.create(
             model="meta-llama/Llama-3.3-70B-Instruct",
             messages=[
+                 {
+                    "role": "system",
+                    "content": """Guidelines:
+                                    - Use information from the provided context to give accurate and helpful responses
+                                    - If the answer cannot be deduced from the context, acknowledge that and offer to help with other queries
+                                    - Don't mention that context is provided to you
+
+                                """,
+                },
                 {
                     "role": "user",
-                    "content": response_prompt
+                    "content": query_context
                 }
             ],
         )
